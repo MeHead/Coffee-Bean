@@ -2,49 +2,54 @@ import os
 import discord
 from discord.ext import commands
 import random
+import math
 import games
 
 
 PREFIX = '**'
+BOT_COLOUR = 0x00effe
 BOT_TOKEN = os.getenv('BOT_TOKEN')
+BOT_PRESENCE = discord.Activity(name="over the Coffee Shop", type=discord.ActivityType.watching)
 
-client = commands.Bot(command_prefix=PREFIX, case_insensitive=True, activity=discord.Activity(name="over the Coffee Shop", type=discord.ActivityType.watching))
+
+client = commands.Bot(command_prefix=PREFIX, case_insensitive=True, activity=BOT_PRESENCE)
 client.remove_command("help")
 
 
-bot_colour = 0x00effe
-
 def simple_embed(description):
-    return discord.Embed(colour=bot_colour, description=description)
+    return discord.Embed(colour=BOT_COLOUR, description=description)
+
+def list_to_string(items):
+    return "\n".join([ f"• {item}" for item in items ])
+
+def space(n = 1):
+    magic = "‎ "
+    return magic * n
 
 
 @client.command()
 async def gamers(ctx, got : int):
 
-    available = []
-    for (game, players) in games.games.items():
-        if got in range(players[0], players[1]+1):
-            available.append(game)
-
+    # Fetch a list of available games matching the given player count
+    available = [ game for game, players in games.games.items() if got in range(players[0], players[1]+1) ]
     found = len(available)
-    half = int(found / 2)
 
-    if found % 2 == 1:
-        half = half+1
+    # Return if no games are found
+    if found == 0: return await ctx.send(embed=simple_embed(f"{ctx.author.mention} There are no games found with this player count"))
 
-    first_half = "\n".join([ f"• {game}" for game in available[:half]])
-    second_half = "\n".join([ f"• {game}" for game in available[half:]])\
+    # Split the available games list into two equal halves
+    half = math.ceil(found / 2)
+    first_half = list_to_string(available[:half])
+    second_half = list_to_string(available[half:])
 
-    if found == 0:
-        return await ctx.send(embed=simple_embed(f"{ctx.author.mention} There are no games found with this player count"))
-
+    # Choose a random game
     result = random.choice(available)
-    
-    embed = discord.Embed(colour=bot_colour, title=f"{result}\n\u200b")
+
+    # Format the discord.Embed    
+    embed = discord.Embed(colour=BOT_COLOUR, title=f"{result}\n\u200b")
     embed.set_author(name="Game Picked:", icon_url=client.user.avatar_url)
-    embed.add_field(name=f"__Available Games__‎ ‎‎({found})‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎‎ ‎ ‎ ", value=first_half, inline=True)
-    if len(second_half) != 0:
-        embed.add_field(name="‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎  ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎‎ ‎ ‎‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎ ‎‎ ‎ ‎ ", value=second_half, inline=True)
+    embed.add_field(name=f"__Available Games__‎ ‎‎({found}) {space(16)}", value=first_half, inline=True)
+    if len(second_half) > 0: embed.add_field(name=space(48), value=second_half, inline=True)
 
     await ctx.send(embed=embed)
 
